@@ -17,7 +17,7 @@ const int col[8] = {
 int pixels[8][8];
 
 long previousMillis = 0; 
-long interval = 500;           // interval at which to update (milliseconds)
+long interval = 800;           // interval at which to update (milliseconds)
 
 //game Varibles
 
@@ -57,21 +57,12 @@ void setup() {
   }
 
   clearScreen();
-  //pixels[0][0] = 1;
-  //pixels[7][0] = 1;
-  //pixels[0][5] = 2;
-//  monsterArray[0].alive = true;
-//  monsterArray[0].x = 5;
-//  monsterArray[0].y = 5;
-//  monsterArray[0].Dir = String("r");
-//  monsterArray[0].sizeOf = 3;
-  
 }
 
 void loop() {
-
+  resetGame();
   unsigned long currentMillis = millis();
-
+  Serial.println(playerLives);
   //inside should update the board evry interval
   if(currentMillis - previousMillis > interval) {
     // save the last time you update 
@@ -149,18 +140,27 @@ void blinkLights(){
     }
 }
 
-bool checkCollisions(){
-  for(int i = 0; i < numOfMon; i++) {
-    //monsterArray[i]    
-  }
+void introPage(){
+
 }
 
 void resetGame(){
-  
+  if (playerLives == 0){
+    printPixels();
+    pixels[playerX][playerY] = 0;
+    floodFill(playerX,playerY,2);
+    printPixels();
+    clearScreen();
+    blinkPage();
+    resetMonsterArray();
+    introPage();
+    startGame();
+  }
 }
 
 void startGame(){
-  
+  playerLives = 3;
+
 }
 
 int wakeUpNextEnemy(){
@@ -222,6 +222,46 @@ void killMonster(int mon){
   //add statistic to create new monsters
 }
 
+void resetMonsterArray(){
+  for(int i = 0; i < numOfMon; i++) {
+    monsterArray[i].alive = false;
+  }
+}
+
+//blink animation an restarts the game
+void blinkPage() {
+  int one[][] = { {1,1,1,1,1,1,1,1},
+                  {1,1,1,1,1,1,1,1},
+                  {1,1,1,1,1,1,1,1},
+                  {1,1,1,1,1,1,1,1},
+                  {1,1,1,1,1,1,1,1},
+                  {1,1,1,1,1,1,1,1},
+                  {1,1,1,1,1,1,1,1},
+                  {1,1,1,1,1,1,1,1} };
+  for (int i; i < 4; i ++){
+    pixels = one;
+    for(int j; j < 100; j++){
+      blinkLights();
+    }
+    clearScreen();
+    for(int w; w < 100; w++){
+      blinkLights();
+    }
+  }
+}
+
+void collissionWithPlayer(int x, int y) {
+  if (x == playerX && y == playerY){
+    if (playerLives == 1) {
+      playerLives = playerLives - 1;
+    } else {
+      playerLives = playerLives - 1;
+      clearScreen();
+      blinkPage();
+      resetMonsterArray();
+    }
+  }
+}
 
 //depending on the direction that it is moving, it determines how to draw in direction.
 void drawMonster(int mon){
@@ -233,12 +273,14 @@ void drawMonster(int mon){
         //draw left
         if (validLoc(monsterArray[mon].x - i, monsterArray[mon].y)) {
           shouldKill = false;
+          collissionWithPlayer(monsterArray[mon].x - i,monsterArray[mon].y);
           pixels[monsterArray[mon].x - i][monsterArray[mon].y] = 1;
         }
       } else {
         //draw right
         if (validLoc(monsterArray[mon].x + i, monsterArray[mon].y)) {
           shouldKill = false;
+          collissionWithPlayer(monsterArray[mon].x + i,monsterArray[mon].y);
           pixels[monsterArray[mon].x + i][monsterArray[mon].y] = 1;
         }
       }
@@ -248,12 +290,14 @@ void drawMonster(int mon){
         //draw up
         if (validLoc(monsterArray[mon].x, monsterArray[mon].y + i)) {
           shouldKill = false;
+          collissionWithPlayer(monsterArray[mon].x,monsterArray[mon].y+i);
           pixels[monsterArray[mon].x][monsterArray[mon].y + i] = 1;
         }
       } else {
         //draw down
         if (validLoc(monsterArray[mon].x, monsterArray[mon].y - i)) {
           shouldKill = false;
+          collissionWithPlayer(monsterArray[mon].x,monsterArray[mon].y-i);
           pixels[monsterArray[mon].x][monsterArray[mon].y - i] = 1;
         }
       }
@@ -294,13 +338,8 @@ void readSensors() {
   pixels[playerX][playerY] = 2;
 }
 
-int convertX(int x){
-  return 8 - (1 + x);
-}
-
 void updatePixels(){
   updateEnemies();
-  //checkCollisions();
 }
 
 void refreshScreen() {
@@ -310,5 +349,41 @@ void refreshScreen() {
 }
 
 
+void floodFillUtil( int x, int y, int prevC, int newC)
+{
+    // Base cases
+  blinkLights();
+  if (x < 0 || x >= 8 || y < 0 || y >= 8){
+        return;
+  }
+  if (pixels[x][y] != prevC){
+        return;
+  }
+ 
+    // Replace the color at (x, y)
+    pixels[x][y] = newC;
+ 
+    // Recur for north, east, south and west
+    floodFillUtil(x+1, y, prevC, newC);
+    floodFillUtil( x-1, y, prevC, newC);
+    floodFillUtil( x, y+1, prevC, newC);
+    floodFillUtil( x, y-1, prevC, newC);
+}
+
+void floodFill(int x, int y, int newC)
+{
+    int prevC = pixels[x][y];
+    floodFillUtil(x, y, prevC, newC);
+}
 
 
+void printPixels(){
+  for(int i=0; i<8; i++) {
+    for(int j=0; j<8; j++){
+           Serial.print(pixels[i][j]);
+    }
+   Serial.println("");
+   }
+  
+   Serial.println("");
+}
