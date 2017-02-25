@@ -17,7 +17,7 @@ const int col[8] = {
 int pixels[8][8];
 
 long previousMillis = 0; 
-long interval = 1000;           // interval at which to update (milliseconds)
+long interval = 500;           // interval at which to update (milliseconds)
 
 //game Varibles
 
@@ -31,7 +31,7 @@ typedef struct monster {
    bool right; //is it horizontal or not
    bool alive; // is it active on the board
    int steps; //how many steps it has taken
-   char Dir; // the direction which its moving
+   String Dir; // the direction which its moving
 };
 
 //array of monsters
@@ -46,7 +46,7 @@ void setup() {
   //Initilizes ports
   DDRD = DDRD | B11111111;
   //Random seed initilized
-  randomSeed(129);
+  randomSeed(12989);
   // initialize the I/O pins as outputs
   // iterate over the pins:
   for (int thisPin = 0; thisPin < 8; thisPin++) {
@@ -57,8 +57,15 @@ void setup() {
   }
 
   clearScreen();
-  pixels[0][0] = 1;
-  pixels[0][1] = 2;
+  //pixels[0][0] = 1;
+  //pixels[7][0] = 1;
+  //pixels[0][5] = 2;
+//  monsterArray[0].alive = true;
+//  monsterArray[0].x = 5;
+//  monsterArray[0].y = 5;
+//  monsterArray[0].Dir = String("r");
+//  monsterArray[0].sizeOf = 3;
+  
 }
 
 void loop() {
@@ -68,12 +75,14 @@ void loop() {
   //inside should update the board evry interval
   if(currentMillis - previousMillis > interval) {
     // save the last time you update 
-    previousMillis = currentMillis;  
+    previousMillis = currentMillis; 
+    placeEnemy(); 
+    clearScreen();
+    updateEnemies();
+    
   
   }
-
-  Serial.println(playerX);
-  Serial.println(playerY);
+  //Serial.println(monsterArray[0].right);
   readSensors();
   refreshScreen();
   
@@ -173,26 +182,26 @@ void placeEnemy(){
   if (enemyToWake != -1) {
     monsterArray[enemyToWake].alive = true;
     monsterArray[enemyToWake].sizeOf = random(1,4);
-    monsterArray[enemyToWake].right = random(0,1);
+    monsterArray[enemyToWake].right = random(0,2);
     monsterArray[enemyToWake].steps = 0;
     
     if (randNumber == 0) {
       monsterArray[enemyToWake].x = random(0,8);
       monsterArray[enemyToWake].y = 7;
-      monsterArray[enemyToWake].Dir = "d";
+      monsterArray[enemyToWake].Dir = String("d");
     } else if(randNumber == 1){
       monsterArray[enemyToWake].x = 0;
       monsterArray[enemyToWake].y = random(0,8);
-      monsterArray[enemyToWake].Dir = "l";
+      monsterArray[enemyToWake].Dir = String("r");
     }
     else if(randNumber == 2){
       monsterArray[enemyToWake].x = random(0,8);
       monsterArray[enemyToWake].y = 0;
-      monsterArray[enemyToWake].Dir = "u";
+      monsterArray[enemyToWake].Dir = String("u");
     } else {
       monsterArray[enemyToWake].x = 7;
       monsterArray[enemyToWake].y = random(0,8);
-      monsterArray[enemyToWake].Dir = "r";
+      monsterArray[enemyToWake].Dir = String("l");
     }
   }
 }
@@ -208,21 +217,73 @@ bool validLoc(int x, int y) {
   return false;
 }
 
-void killMonster(){
-  
+void killMonster(int mon){
+  monsterArray[mon].alive = false;
+  //add statistic to create new monsters
 }
 
-void drawMonster(){
-  
+
+//depending on the direction that it is moving, it determines how to draw in direction.
+void drawMonster(int mon){
+  bool shouldKill = true; // if nothing is drawn it will be rest to dead at the end.
+  //checks each of the locations where the moster exists, and determines weather to draw it or not
+  for (int i = 0; i < monsterArray[mon].sizeOf ; i++){
+    if (monsterArray[mon].right) {
+      if (monsterArray[mon].Dir == String("r")){
+        //draw left
+        if (validLoc(monsterArray[mon].x - i, monsterArray[mon].y)) {
+          shouldKill = false;
+          pixels[monsterArray[mon].x - i][monsterArray[mon].y] = 1;
+        }
+      } else {
+        //draw right
+        if (validLoc(monsterArray[mon].x + i, monsterArray[mon].y)) {
+          shouldKill = false;
+          pixels[monsterArray[mon].x + i][monsterArray[mon].y] = 1;
+        }
+      }
+
+    } else {
+      if (monsterArray[mon].Dir == String("d")){
+        //draw up
+        if (validLoc(monsterArray[mon].x, monsterArray[mon].y + i)) {
+          shouldKill = false;
+          pixels[monsterArray[mon].x][monsterArray[mon].y + i] = 1;
+        }
+      } else {
+        //draw down
+        if (validLoc(monsterArray[mon].x, monsterArray[mon].y - i)) {
+          shouldKill = false;
+          pixels[monsterArray[mon].x][monsterArray[mon].y - i] = 1;
+        }
+      }
+    }
+  }
+  if (shouldKill){
+    killMonster(mon);
+  }
+
 }
 
-void updateEnemy(monster mon) {
-  
+void updateEnemy(int mon) {
+  //add to the origin
+  if (monsterArray[mon].Dir == String("u")){
+    monsterArray[mon].y = monsterArray[mon].y + 1;
+  } else if (monsterArray[mon].Dir == String("r")){
+    monsterArray[mon].x = monsterArray[mon].x + 1;
+  } else if (monsterArray[mon].Dir == String("d")){
+    monsterArray[mon].y = monsterArray[mon].y - 1; 
+  } else {
+    monsterArray[mon].x = monsterArray[mon].x -1;
+  }
 }
-
+//could possibly draw at this stage
 void updateEnemies() {
   for(int i = 0; i < numOfMon; i++) {
-    updateEnemy(monsterArray[i]);
+    if(monsterArray[i].alive) {
+      updateEnemy(i);
+      drawMonster(i);
+    }
   }
 }
 
@@ -233,15 +294,19 @@ void readSensors() {
   pixels[playerX][playerY] = 2;
 }
 
+int convertX(int x){
+  return 8 - (1 + x);
+}
+
 void updatePixels(){
-  updatePlayer();
   updateEnemies();
-  checkCollisions();
+  //checkCollisions();
 }
 
 void refreshScreen() {
-    updatePixels();
+    //updatePixels();
     blinkLights();
+    //clearScreen();
 }
 
 
