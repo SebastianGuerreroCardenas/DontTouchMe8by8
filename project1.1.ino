@@ -12,6 +12,14 @@ const int col[8] = {
   0, 1, 2, 3, 4, 5, 6, 7
 };
 
+const int introPattern[8][8] = { {2,2,2,2,1,1,0,1},
+                            {2,2,2,1,1,0,1,1},
+                            {2,2,1,1,0,1,1,2},
+                            {2,1,1,0,1,1,2,2},
+                            {1,1,0,1,1,2,2,2},
+                            {1,0,1,1,2,2,2,1},
+                            {0,1,1,2,2,2,1,1},
+                            {1,1,2,2,2,1,1,0} };
 
 // 2-dimensional array of pixels:
 int pixels[8][8];
@@ -23,6 +31,7 @@ long interval = 800;           // interval at which to update (milliseconds)
 
 //struct for a monster
 const int numOfMon = 10;
+bool gameStarted = false;
 
 typedef struct monster {
    int x; //x location
@@ -40,6 +49,8 @@ monster monsterArray[numOfMon];
 int playerX = 5;
 int playerY = 5;
 int playerLives = 3;
+int highscore = 0;
+int score = 0;
 
 void setup() {
   //Serial.begin(9600);
@@ -55,14 +66,12 @@ void setup() {
     
     digitalWrite(row[thisPin], HIGH);
   }
-
   clearScreen();
 }
 
 void loop() {
   resetGame();
   unsigned long currentMillis = millis();
-  Serial.println(playerLives);
   //inside should update the board evry interval
   if(currentMillis - previousMillis > interval) {
     // save the last time you update 
@@ -70,13 +79,11 @@ void loop() {
     placeEnemy(); 
     clearScreen();
     updateEnemies();
-    
-  
+    score = score + 1;
   }
-  //Serial.println(monsterArray[0].right);
+  gameinit();
   readSensors();
   refreshScreen();
-  
 }
 
 
@@ -89,6 +96,83 @@ void clearScreen(){
       pixels[x][y] = 0;
     }
   }
+}
+
+void oneScreen(){
+  for (int x = 0; x < 8; x++) {
+    for (int y = 0; y < 8; y++) {
+      pixels[x][y] = 1;
+    }
+  }
+}
+
+void drawLives(int val){
+  if (playerLives == 3) {
+    draw3(val);
+  } else if (playerLives == 2) {
+    draw2(val);
+  } else {
+    draw1(val);
+  }
+}
+
+void draw3(int val){
+  pixels[1][2] = val;
+  pixels[2][2] = val;
+  pixels[3][2] = val;
+  pixels[4][2] = val;
+  pixels[5][2] = val;
+  pixels[6][2] = val;
+
+  pixels[1][3] = val;
+  pixels[4][3] = val;
+  pixels[6][3] = val;
+  
+  pixels[1][4] = val;
+  pixels[4][4] = val;
+  pixels[6][4] = val;
+  
+  pixels[1][5] = val;
+  pixels[4][5] = val;
+  pixels[6][5] = val;
+}
+
+void draw2(int val){
+
+  pixels[1][2] = val;
+  pixels[1][3] = val;
+  pixels[1][4] = val;
+  pixels[1][5] = val;
+
+  pixels[4][2] = val;
+  pixels[4][3] = val;
+  pixels[4][4] = val;
+  pixels[4][5] = val;
+
+  pixels[6][2] = val;
+  pixels[6][3] = val;
+  pixels[6][4] = val;
+  pixels[6][5] = val;
+
+  pixels[5][2] = val;
+  pixels[2][5] = val;
+  pixels[3][5] = val;
+}
+
+void draw1(int val){
+  pixels[1][3] = val;
+  pixels[2][3] = val;
+  pixels[3][3] = val;
+  pixels[4][3] = val;
+  pixels[5][3] = val;
+  pixels[6][3] = val;
+
+  pixels[1][2] = val;
+  pixels[1][3] = val;
+  pixels[1][4] = val;
+
+  pixels[5][4] = val;
+  
 }
 
 //Tunrs the port to all Lows
@@ -140,21 +224,79 @@ void blinkLights(){
     }
 }
 
-void introPage(){
+void shiftOnce(int row){
+  int tempVal = pixels[row][7]; 
+  for(int i = 1; i < 7; i++){
+    pixels[row][i] = pixels[row][i+1];
+  }
+  pixels[row][0] = tempVal;
+}
 
+void introPage(){
+  for(int i =0; i< 8; i++) {
+    for(int j = 0; j < 8;j++){
+      pixels[i][j] = introPattern[i][j];
+    }
+  }
+
+
+  for(int i =0; i< 8; i++) {
+    shiftOnce(i);
+    for(int j = 0; j < 70; j++){
+      blinkLights();
+    }
+  }
+  
+}
+
+void drawScore() {
+  clearScreen();
+  int temp = 0;
+  for(int i = 7; i > -1; i--){
+    for(int j = 7; j > -1; j--){
+      temp = temp + 1;
+      if(temp < score){
+        pixels[i][j] = 2;
+      } else if (temp < highscore) {
+        pixels[i][j] = 1;
+      }
+      else {
+        return;
+      }
+      for(int j = 0; j < 20; j++){
+        blinkLights();
+      }
+    }
+  }
+}
+
+void scoreUpdate(){
+  if (score > highscore) {
+    highscore = score;
+  }
+  score = 0;
 }
 
 void resetGame(){
   if (playerLives == 0){
-    printPixels();
     pixels[playerX][playerY] = 0;
     floodFill(playerX,playerY,2);
-    printPixels();
     clearScreen();
-    blinkPage();
     resetMonsterArray();
     introPage();
     startGame();
+    drawScore();
+    scoreUpdate();
+    blinkPage();
+  }
+}
+
+void gameinit(){
+  if (playerX != 0 && playerY != 0){
+    gameStarted = true;
+  }
+  if (gameStarted == false){
+    introPage();
   }
 }
 
@@ -229,22 +371,16 @@ void resetMonsterArray(){
 }
 
 //blink animation an restarts the game
-void blinkPage() {
-  int one[][] = { {1,1,1,1,1,1,1,1},
-                  {1,1,1,1,1,1,1,1},
-                  {1,1,1,1,1,1,1,1},
-                  {1,1,1,1,1,1,1,1},
-                  {1,1,1,1,1,1,1,1},
-                  {1,1,1,1,1,1,1,1},
-                  {1,1,1,1,1,1,1,1},
-                  {1,1,1,1,1,1,1,1} };
-  for (int i; i < 4; i ++){
-    pixels = one;
-    for(int j; j < 100; j++){
+void blinkPage() {         
+  for (int i = 0; i < 4; i++){
+    oneScreen();
+    drawLives(0);
+    for(int j = 0; j < 70; j++){
       blinkLights();
     }
     clearScreen();
-    for(int w; w < 100; w++){
+    drawLives(1);
+    for(int w = 0; w < 70; w++){
       blinkLights();
     }
   }
@@ -343,12 +479,11 @@ void updatePixels(){
 }
 
 void refreshScreen() {
-    //updatePixels();
     blinkLights();
-    //clearScreen();
 }
 
 
+//Very modified version inspired from http://www.geeksforgeeks.org/flood-fill-algorithm-implement-fill-paint/
 void floodFillUtil( int x, int y, int prevC, int newC)
 {
     // Base cases
@@ -360,14 +495,14 @@ void floodFillUtil( int x, int y, int prevC, int newC)
         return;
   }
  
-    // Replace the color at (x, y)
-    pixels[x][y] = newC;
- 
-    // Recur for north, east, south and west
-    floodFillUtil(x+1, y, prevC, newC);
-    floodFillUtil( x-1, y, prevC, newC);
-    floodFillUtil( x, y+1, prevC, newC);
-    floodFillUtil( x, y-1, prevC, newC);
+  // Replace the color at (x, y)
+  pixels[x][y] = newC;
+
+  // Recur for north, east, south and west
+  floodFillUtil(x+1, y, prevC, newC);
+  floodFillUtil( x-1, y, prevC, newC);
+  floodFillUtil( x, y+1, prevC, newC);
+  floodFillUtil( x, y-1, prevC, newC);
 }
 
 void floodFill(int x, int y, int newC)
@@ -387,3 +522,4 @@ void printPixels(){
   
    Serial.println("");
 }
+
