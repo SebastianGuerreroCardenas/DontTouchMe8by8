@@ -12,14 +12,15 @@ const int col[8] = {
   0, 1, 2, 3, 4, 5, 6, 7
 };
 
-const int introPattern[8][8] = { {2,2,2,2,1,1,0,1},
-                            {2,2,2,1,1,0,1,1},
-                            {2,2,1,1,0,1,1,2},
-                            {2,1,1,0,1,1,2,2},
-                            {1,1,0,1,1,2,2,2},
-                            {1,0,1,1,2,2,2,1},
-                            {0,1,1,2,2,2,1,1},
-                            {1,1,2,2,2,1,1,0} };
+//Patter that is repeated in the intro screen
+const int introPattern[8][8] = { {1,1,2,2,2,1,1,0},
+                                 {0,1,1,2,2,2,1,1},
+                                 {1,0,1,1,2,2,2,1},
+                                 {1,1,0,1,1,2,2,2},
+                                 {2,1,1,0,1,1,2,2},
+                                 {2,2,1,1,0,1,1,2},
+                                 {2,2,2,1,1,0,1,1},
+                                 {1,2,2,2,1,1,0,1} };
 
 // 2-dimensional array of pixels:
 int pixels[8][8];
@@ -33,6 +34,8 @@ long interval = 800;           // interval at which to update (milliseconds)
 const int numOfMon = 10;
 bool gameStarted = false;
 
+
+//This is the struct for a monster, and all od its moving parts
 typedef struct monster {
    int x; //x location
    int y; //y location
@@ -46,14 +49,15 @@ typedef struct monster {
 //array of monsters
 monster monsterArray[numOfMon];
 
-int playerX = 5;
-int playerY = 5;
+
+//plarter varibles
+int playerX = 0;
+int playerY = 0;
 int playerLives = 3;
 int highscore = 0;
 int score = 0;
 
 void setup() {
-  //Serial.begin(9600);
   //Initilizes ports
   DDRD = DDRD | B11111111;
   //Random seed initilized
@@ -70,10 +74,11 @@ void setup() {
 }
 
 void loop() {
+  gameinit();
   resetGame();
   unsigned long currentMillis = millis();
   //inside should update the board evry interval
-  if(currentMillis - previousMillis > interval) {
+  if(currentMillis - previousMillis > interval && gameStarted == true) {
     // save the last time you update 
     previousMillis = currentMillis; 
     placeEnemy(); 
@@ -81,7 +86,6 @@ void loop() {
     updateEnemies();
     score = score + 1;
   }
-  gameinit();
   readSensors();
   refreshScreen();
 }
@@ -98,6 +102,7 @@ void clearScreen(){
   }
 }
 
+//converts the screen into 1.
 void oneScreen(){
   for (int x = 0; x < 8; x++) {
     for (int y = 0; y < 8; y++) {
@@ -106,6 +111,7 @@ void oneScreen(){
   }
 }
 
+//draws the lives
 void drawLives(int val){
   if (playerLives == 3) {
     draw3(val);
@@ -180,6 +186,7 @@ void clearPort() {
   PORTD = B00000000;
 }
 
+//converts an array of integers into a binary value
 void arrayToPort(int row[]) {
   byte b = B00000000;
   for(int i = 0; i < 8; i++) {
@@ -192,6 +199,7 @@ void arrayToPort(int row[]) {
   PORTD = b;
 }
 
+//converts an array of integers into a binary value but only 2
 void arrayToPortHalf(int row[]) {
   byte b = B00000000;
   for(int i = 0; i < 8; i++) {
@@ -204,6 +212,7 @@ void arrayToPortHalf(int row[]) {
   PORTD = b;
 }
 
+//function that indiviusally lightds up each row
 void blinkLights(){
   for (int thisRow = 0; thisRow < 8; thisRow++) {
       digitalWrite(row[thisRow], LOW);
@@ -224,14 +233,16 @@ void blinkLights(){
     }
 }
 
+//shifts an array by one
 void shiftOnce(int row){
-  int tempVal = pixels[row][7]; 
-  for(int i = 1; i < 7; i++){
+  int tempVal = pixels[row][0]; 
+  for(int i = 0; i < 7; i++){
     pixels[row][i] = pixels[row][i+1];
   }
-  pixels[row][0] = tempVal;
+  pixels[row][7] = tempVal;
 }
 
+//animation for the intro page
 void introPage(){
   for(int i =0; i< 8; i++) {
     for(int j = 0; j < 8;j++){
@@ -239,16 +250,21 @@ void introPage(){
     }
   }
 
-
-  for(int i =0; i< 8; i++) {
-    shiftOnce(i);
-    for(int j = 0; j < 70; j++){
-      blinkLights();
+  for(int i = 0; i< 8; i++) {
+    for(int w =0; w< 8; w++) {
+      shiftOnce(w);
     }
+    for(int j = 0; j < 60; j++){
+        blinkLights();
+        if(playerMoved()) {
+          clearScreen();
+        }
+      }
   }
   
 }
 
+//Draws blinking inverted numbers 1,2,3
 void drawScore() {
   clearScreen();
   int temp = 0;
@@ -278,12 +294,11 @@ void scoreUpdate(){
 }
 
 void resetGame(){
-  if (playerLives == 0){
+  if (playerLives <= 0){
     pixels[playerX][playerY] = 0;
     floodFill(playerX,playerY,2);
     clearScreen();
     resetMonsterArray();
-    introPage();
     startGame();
     drawScore();
     scoreUpdate();
@@ -291,6 +306,7 @@ void resetGame(){
   }
 }
 
+//determins wether or not to show the intro animation
 void gameinit(){
   if (playerX != 0 && playerY != 0){
     gameStarted = true;
@@ -300,11 +316,20 @@ void gameinit(){
   }
 }
 
-void startGame(){
-  playerLives = 3;
-
+//checks for when the player moves in the intro to start the animation
+bool playerMoved(){
+  if(playerX != 0 && playerY != 0){
+    return true;
+  }
+  return false;
 }
 
+//Resets the lives in the game
+void startGame(){
+  playerLives = 3;
+}
+
+//Finds the next daed monster in the array to wake up
 int wakeUpNextEnemy(){
   for(int i = 0; i < numOfMon; i++) {
     if (monsterArray[i].alive == false){
@@ -348,10 +373,12 @@ void placeEnemy(){
   }
 }
 
+//updates the player
 void updatePlayer(){
   readSensors();
 }
 
+//determines weather the mosnters specific locaiton is valid
 bool validLoc(int x, int y) {
   if (x >= 0 && x <= 7 && y >= 0 && y <= 7) {
     return true;
@@ -359,18 +386,21 @@ bool validLoc(int x, int y) {
   return false;
 }
 
+//Kills an individual monster
 void killMonster(int mon){
   monsterArray[mon].alive = false;
   //add statistic to create new monsters
 }
 
+//Kills a ll the mosters in the array
 void resetMonsterArray(){
   for(int i = 0; i < numOfMon; i++) {
     monsterArray[i].alive = false;
   }
 }
 
-//blink animation an restarts the game
+//This flashes the lights displayed on the board. If it is a two it will blink them twice. If 1 it will do it once
+//if zero it will not blink them at all
 void blinkPage() {         
   for (int i = 0; i < 4; i++){
     oneScreen();
@@ -386,6 +416,8 @@ void blinkPage() {
   }
 }
 
+
+//Checks wethere the player is being hit by one of the moving pieces.
 void collissionWithPlayer(int x, int y) {
   if (x == playerX && y == playerY){
     if (playerLives == 1) {
@@ -445,6 +477,8 @@ void drawMonster(int mon){
 
 }
 
+
+//Updates an individual enemy, and moves the head of their position
 void updateEnemy(int mon) {
   //add to the origin
   if (monsterArray[mon].Dir == String("u")){
@@ -457,16 +491,17 @@ void updateEnemy(int mon) {
     monsterArray[mon].x = monsterArray[mon].x -1;
   }
 }
-//could possibly draw at this stage
+//Iterated over the enemie array and upadtes each move along with drawing them on the board.
 void updateEnemies() {
   for(int i = 0; i < numOfMon; i++) {
     if(monsterArray[i].alive) {
-      updateEnemy(i);
       drawMonster(i);
+      updateEnemy(i);
     }
   }
 }
 
+//THis reads the analog inpts and converts them to a range from 0 to 7. Got this from a arduino tutorial
 void readSensors() {
   pixels[playerX][playerY] = 0;
   playerX = 7 - map(analogRead(A0), 0, 1023, 0, 7);
@@ -474,17 +509,20 @@ void readSensors() {
   pixels[playerX][playerY] = 2;
 }
 
+//THis updates the pixels, in this case the only thing being updated constantly is the enemies
 void updatePixels(){
   updateEnemies();
 }
 
+//All methods that can be added when the screen is refreshed
 void refreshScreen() {
     blinkLights();
 }
 
 
 //Very modified version inspired from http://www.geeksforgeeks.org/flood-fill-algorithm-implement-fill-paint/
-void floodFillUtil( int x, int y, int prevC, int newC)
+//recursevly perfoms flood fill and draws it.
+void floodFillHelper( int x, int y, int prevC, int newC)
 {
     // Base cases
   blinkLights();
@@ -499,19 +537,20 @@ void floodFillUtil( int x, int y, int prevC, int newC)
   pixels[x][y] = newC;
 
   // Recur for north, east, south and west
-  floodFillUtil(x+1, y, prevC, newC);
-  floodFillUtil( x-1, y, prevC, newC);
-  floodFillUtil( x, y+1, prevC, newC);
-  floodFillUtil( x, y-1, prevC, newC);
+  floodFillHelper(x+1, y, prevC, newC);
+  floodFillHelper( x-1, y, prevC, newC);
+  floodFillHelper( x, y+1, prevC, newC);
+  floodFillHelper( x, y-1, prevC, newC);
 }
 
+//Recursive function that calls on helper to perfomr flood fil 
 void floodFill(int x, int y, int newC)
 {
     int prevC = pixels[x][y];
-    floodFillUtil(x, y, prevC, newC);
+    floodFillHelper(x, y, prevC, newC);
 }
 
-
+//Helper function for debugginf that prints out the state of the board.
 void printPixels(){
   for(int i=0; i<8; i++) {
     for(int j=0; j<8; j++){
